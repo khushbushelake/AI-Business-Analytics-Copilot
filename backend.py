@@ -4,6 +4,7 @@ import sqlite3
 import time
 
 import pandas as pd
+import streamlit as st
 from google import genai
 
 
@@ -11,16 +12,25 @@ from google import genai
 # Gemini Configuration
 # ============================================
 
-gemini_key = os.environ.get("GEMINI_API_KEY")
+gemini_key = None
 
+# Streamlit Cloud
+try:
+    gemini_key = st.secrets.get("GEMINI_API_KEY")
+except Exception:
+    pass
+
+# Environment variable
+if not gemini_key:
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+
+# Google Colab fallback
 if not gemini_key:
     try:
         from google.colab import userdata
         gemini_key = userdata.get("GEMINI_API_KEY")
-        os.environ["GEMINI_API_KEY"] = gemini_key
     except Exception:
         gemini_key = None
-
 
 if gemini_key:
     gemini_client = genai.Client(
@@ -29,11 +39,8 @@ if gemini_key:
 else:
     gemini_client = None
 
-
 # Use the model that previously worked for this project.
 GEMINI_MODEL = "gemini-3-flash-preview"
-
-
 # ============================================
 # Load Dataset
 # ============================================
@@ -361,6 +368,7 @@ def business_copilot(question, data=None):
     # DETERMINISTIC BUSINESS ANSWERS
     # ============================================
 
+    # Highest profit margin region
     if "highest profit margin" in question_lower and "region" in question_lower:
         region_data = get_region_performance(data)
         row = region_data.loc[region_data["Profit Margin %"].idxmax()]
@@ -374,6 +382,7 @@ def business_copilot(question, data=None):
             f"- Orders: **{row['Orders']:,}**"
         )
 
+    # Most profitable category
     if "most profit" in question_lower and "category" in question_lower:
         category_data = get_category_performance(data)
         row = category_data.loc[category_data["Profit"].idxmax()]
@@ -386,6 +395,7 @@ def business_copilot(question, data=None):
             f"- Profit Margin: **{row['Profit Margin %']:.2f}%**"
         )
 
+    # Highest profit margin year
     if "highest profit margin" in question_lower and "year" in question_lower:
         yearly_data = get_yearly_performance(data)
         row = yearly_data.loc[yearly_data["Profit Margin %"].idxmax()]
@@ -398,6 +408,7 @@ def business_copilot(question, data=None):
             f"- Profit: **${row['Profit']:,.2f}**"
         )
 
+    # Business recommendations
     if "recommendation" in question_lower or "recommendations" in question_lower:
         region_data = get_region_performance(data)
         category_data = get_category_performance(data)
@@ -426,17 +437,114 @@ def business_copilot(question, data=None):
         return (
             "### 💡 3 Business Recommendations\n\n"
             f"**1. Improve {lowest_category['Product Category']} profitability**\n"
-            f"- It has the lowest category profit margin at "
-            f"**{lowest_category['Profit Margin %']:.2f}%**. "
-            f"Review pricing, discounts, and product-level costs.\n\n"
+            f"- Profit margin: **{lowest_category['Profit Margin %']:.2f}%**\n\n"
             f"**2. Investigate {lowest_region['Region']} performance**\n"
-            f"- Its regional profit margin is "
-            f"**{lowest_region['Profit Margin %']:.2f}%**. "
-            f"Analyze products, customers, and discount patterns in this region.\n\n"
+            f"- Profit margin: **{lowest_region['Profit Margin %']:.2f}%**\n\n"
             f"**3. Review {slowest_shipping['Ship Mode']} shipping performance**\n"
-            f"- It has the highest average shipping time at "
-            f"**{slowest_shipping['Average_Shipping_Days']:.2f} days**. "
-            f"Review whether delivery time can be reduced without increasing costs."
+            f"- Average shipping time: **{slowest_shipping['Average_Shipping_Days']:.2f} days**"
+        )
+
+    # ============================================
+    # ADDITIONAL DIRECT DATASET ANSWERS
+    # ============================================
+
+    # Highest sales region
+    if "highest sales" in question_lower and "region" in question_lower:
+        region_data = get_region_performance(data)
+        row = region_data.loc[region_data["Sales"].idxmax()]
+
+        return (
+            f"### 📊 Highest Sales Region\n\n"
+            f"**{row['Region']}** has the highest sales.\n\n"
+            f"- Sales: **${row['Sales']:,.2f}**\n"
+            f"- Profit: **${row['Profit']:,.2f}**\n"
+            f"- Profit Margin: **{row['Profit Margin %']:.2f}%**"
+        )
+
+    # Highest sales category
+    if "highest sales" in question_lower and "category" in question_lower:
+        category_data = get_category_performance(data)
+        row = category_data.loc[category_data["Sales"].idxmax()]
+
+        return (
+            f"### 📊 Highest Sales Category\n\n"
+            f"**{row['Product Category']}** has the highest sales.\n\n"
+            f"- Sales: **${row['Sales']:,.2f}**\n"
+            f"- Profit: **${row['Profit']:,.2f}**\n"
+            f"- Profit Margin: **{row['Profit Margin %']:.2f}%**"
+        )
+
+    # Highest profit region
+    if "highest profit" in question_lower and "region" in question_lower:
+        region_data = get_region_performance(data)
+        row = region_data.loc[region_data["Profit"].idxmax()]
+
+        return (
+            f"### 💰 Highest Profit Region\n\n"
+            f"**{row['Region']}** generated the highest profit.\n\n"
+            f"- Profit: **${row['Profit']:,.2f}**\n"
+            f"- Sales: **${row['Sales']:,.2f}**\n"
+            f"- Profit Margin: **{row['Profit Margin %']:.2f}%**"
+        )
+
+    # Overall KPI questions
+    if "total sales" in question_lower:
+        kpis = get_business_kpis(data)
+
+        return (
+            f"### 💵 Total Sales\n\n"
+            f"Total sales are **${kpis['total_sales']:,.2f}**."
+        )
+
+    if "total profit" in question_lower:
+        kpis = get_business_kpis(data)
+
+        return (
+            f"### 💰 Total Profit\n\n"
+            f"Total profit is **${kpis['total_profit']:,.2f}**."
+        )
+
+    if "average order value" in question_lower:
+        total_sales = data["Sales"].sum()
+        total_orders = data["Order ID"].nunique()
+        aov = total_sales / total_orders if total_orders else 0
+
+        return (
+            f"### 🧾 Average Order Value\n\n"
+            f"The average order value is **${aov:,.2f}**."
+        )
+
+    # Shipping questions
+    if "shipping" in question_lower and (
+        "fastest" in question_lower or
+        "slowest" in question_lower
+    ):
+        shipping_data = (
+            data.groupby("Ship Mode")
+            .agg(
+                Average_Shipping_Days=("Shipping Days", "mean"),
+                Orders=("Order ID", "nunique")
+            )
+            .reset_index()
+        )
+
+        if "fastest" in question_lower:
+            row = shipping_data.loc[
+                shipping_data["Average_Shipping_Days"].idxmin()
+            ]
+            label = "Fastest"
+
+        else:
+            row = shipping_data.loc[
+                shipping_data["Average_Shipping_Days"].idxmax()
+            ]
+            label = "Slowest"
+
+        return (
+            f"### 🚚 {label} Shipping Mode\n\n"
+            f"**{row['Ship Mode']}** has an average shipping time of "
+            f"**{row['Average_Shipping_Days']:.2f} days**.\n\n"
+            f"- Orders: **{row['Orders']:,}**"
         )
 
     # ============================================
