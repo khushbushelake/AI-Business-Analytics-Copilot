@@ -360,8 +360,12 @@ Provide a useful and concise business answer.
 def business_copilot(question, data=None):
 
     if data is None:
-        data = df
+        data = df.copy()
+    else:
+        data = data.copy()
 
+    # Always use the currently filtered dataset
+    data = data.reset_index(drop=True)
     question_lower = question.lower()
 
     # ============================================
