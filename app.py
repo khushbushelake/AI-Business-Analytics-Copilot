@@ -93,19 +93,71 @@ with st.sidebar:
 
     st.divider()
 
-    st.markdown("### 📅 Filters")
+    # ============================================
+    # INTERACTIVE FILTERS
+    # ============================================
+
+    st.markdown("### 🔎 Filters")
 
     years = sorted(
         backend.df["Year"].unique()
     )
 
+    regions = sorted(
+        backend.df["Region"].dropna().unique()
+    )
+
+    categories = sorted(
+        backend.df["Product Category"].dropna().unique()
+    )
+
+    segments = sorted(
+        backend.df["Customer Segment"].dropna().unique()
+    )
+
+    ship_modes = sorted(
+        backend.df["Ship Mode"].dropna().unique()
+    )
+
     selected_year = st.selectbox(
-        "Select Year",
+        "📅 Select Year",
         ["All Years"] + years,
         key="year_filter"
     )
 
+    selected_region = st.multiselect(
+        "🌎 Region",
+        regions,
+        default=regions,
+        key="region_filter"
+    )
+
+    selected_category = st.multiselect(
+        "📦 Category",
+        categories,
+        default=categories,
+        key="category_filter"
+    )
+
+    selected_segment = st.multiselect(
+        "👥 Customer Segment",
+        segments,
+        default=segments,
+        key="segment_filter"
+    )
+
+    selected_ship_mode = st.multiselect(
+        "🚚 Ship Mode",
+        ship_modes,
+        default=ship_modes,
+        key="ship_mode_filter"
+    )
+
     st.divider()
+
+    # ============================================
+    # TECHNOLOGY
+    # ============================================
 
     st.markdown("### 🛠️ Technology")
 
@@ -125,17 +177,23 @@ with st.sidebar:
 # FILTER DATA
 # ============================================
 
-if selected_year == "All Years":
+filtered_df = backend.df.copy()
 
-    filtered_df = backend.df.copy()
+if selected_year != "All Years":
 
-else:
+    filtered_df = filtered_df[
+        filtered_df["Year"] == selected_year
+    ]
 
-    filtered_df = backend.df[
-        backend.df["Year"] == selected_year
-    ].copy()
-
-
+filtered_df = filtered_df[
+    filtered_df["Region"].isin(selected_region)
+    &
+    filtered_df["Product Category"].isin(selected_category)
+    &
+    filtered_df["Customer Segment"].isin(selected_segment)
+    &
+    filtered_df["Ship Mode"].isin(selected_ship_mode)
+].copy()
 # ============================================
 # HEADER
 # ============================================
@@ -189,37 +247,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-
-    st.metric(
-        "Total Sales",
-        f"${total_sales:,.0f}"
-    )
-
-with col2:
-
-    st.metric(
-        "Total Profit",
-        f"${total_profit:,.0f}"
-    )
-
-with col3:
-
-    st.metric(
-        "Total Orders",
-        f"{total_orders:,}"
-    )
-
-with col4:
-
-    st.metric(
-        "Profit Margin",
-        f"{profit_margin:.2f}%"
-    )
-
-
 # Additional KPI calculations
 total_customers = filtered_df["Customer Name"].nunique()
 
@@ -227,38 +254,56 @@ total_quantity = filtered_df["Order Quantity"].sum()
 
 average_order_value = (
     total_sales / total_orders
-    if total_orders != 0
-    else 0
+    if total_orders != 0 else 0
 )
 
+# KPI Row 1
+col1, col2, col3, col4 = st.columns(4)
 
-# ============================================
-# ADDITIONAL BUSINESS KPIs
-# ============================================
+with col1:
+    st.metric(
+        "Total Sales",
+        f"${total_sales:,.0f}"
+    )
 
+with col2:
+    st.metric(
+        "Total Profit",
+        f"${total_profit:,.0f}"
+    )
+
+with col3:
+    st.metric(
+        "Total Orders",
+        f"{total_orders:,}"
+    )
+
+with col4:
+    st.metric(
+        "Profit Margin",
+        f"{profit_margin:.2f}%"
+    )
+
+# KPI Row 2
 col5, col6, col7 = st.columns(3)
 
 with col5:
-
     st.metric(
         "Total Customers",
         f"{total_customers:,}"
     )
 
 with col6:
-
     st.metric(
         "Quantity Sold",
         f"{total_quantity:,}"
     )
 
 with col7:
-
     st.metric(
         "Average Order Value",
-        f"${average_order_value:,.0f}"
+        f"${average_order_value:,.2f}"
     )
-
 
 st.divider()
 
@@ -329,164 +374,6 @@ st.divider()
 
 
 # ============================================
-# PROFITABILITY ANALYSIS
-# ============================================
-
-st.markdown(
-    '<div class="section-title">'
-    '💰 Profitability Analysis'
-    '</div>',
-    unsafe_allow_html=True
-)
-
-col1, col2 = st.columns(2)
-
-
-# --------------------------------------------
-# Regional Profit
-# --------------------------------------------
-
-with col1:
-
-    st.markdown("### Regional Profit")
-
-    st.bar_chart(
-        region_data.set_index("Region")["Profit"]
-    )
-
-
-# --------------------------------------------
-# Category Profit
-# --------------------------------------------
-
-with col2:
-
-    st.markdown("### Category Profit")
-
-    st.bar_chart(
-        category_data.set_index(
-            "Product Category"
-        )["Profit"]
-    )
-
-
-st.divider()
-
-
-# ============================================
-# AUTOMATIC BUSINESS INSIGHTS
-# ============================================
-
-st.markdown(
-    '<div class="section-title">'
-    '💡 Automatic Business Insights'
-    '</div>',
-    unsafe_allow_html=True
-)
-
-# Calculate profitability metrics
-region_insights = (
-    filtered_df
-    .groupby("Region")
-    .agg(
-        Sales=("Sales", "sum"),
-        Profit=("Profit", "sum")
-    )
-    .reset_index()
-)
-
-region_insights["Profit Margin %"] = (
-    region_insights["Profit"]
-    / region_insights["Sales"]
-) * 100
-
-category_insights = (
-    filtered_df
-    .groupby("Product Category")
-    .agg(
-        Sales=("Sales", "sum"),
-        Profit=("Profit", "sum")
-    )
-    .reset_index()
-)
-
-category_insights["Profit Margin %"] = (
-    category_insights["Profit"]
-    / category_insights["Sales"]
-) * 100
-
-
-# Find key insights
-top_profit_region = region_insights.loc[
-    region_insights["Profit"].idxmax()
-]
-
-top_profit_category = category_insights.loc[
-    category_insights["Profit"].idxmax()
-]
-
-top_margin_region = region_insights.loc[
-    region_insights["Profit Margin %"].idxmax()
-]
-
-lowest_margin_category = category_insights.loc[
-    category_insights["Profit Margin %"].idxmin()
-]
-
-
-# Display insights
-insight_col1, insight_col2 = st.columns(2)
-
-with insight_col1:
-
-    st.info(
-        f"🏆 **Highest Profit Region:** "
-        f"{top_profit_region['Region']} — "
-        f"${top_profit_region['Profit']:,.0f}"
-    )
-
-    st.info(
-        f"📊 **Highest Profit Category:** "
-        f"{top_profit_category['Product Category']} — "
-        f"${top_profit_category['Profit']:,.0f}"
-    )
-
-    st.info(
-        f"📈 **Highest Regional Profit Margin:** "
-        f"{top_margin_region['Region']} — "
-        f"{top_margin_region['Profit Margin %']:.2f}%"
-    )
-
-
-with insight_col2:
-
-    st.warning(
-        f"⚠️ **Lowest Category Profit Margin:** "
-        f"{lowest_margin_category['Product Category']} — "
-        f"{lowest_margin_category['Profit Margin %']:.2f}%"
-    )
-
-    if (
-        lowest_margin_category["Sales"]
-        > top_profit_category["Sales"] * 0.75
-        and lowest_margin_category["Profit Margin %"]
-        < top_profit_category["Profit Margin %"]
-    ):
-
-        st.warning(
-            f"💡 **Sales vs Profitability:** "
-            f"{lowest_margin_category['Product Category']} "
-            f"generates ${lowest_margin_category['Sales']:,.0f} "
-            f"in sales but has a relatively low "
-            f"profit margin of "
-            f"{lowest_margin_category['Profit Margin %']:.2f}%."
-        )
-
-
-st.divider()
-
-
-# ============================================
 # MONTHLY PERFORMANCE TREND
 # ============================================
 
@@ -522,60 +409,942 @@ st.divider()
 
 
 # ============================================
-# SHIPPING PERFORMANCE
+# EXECUTIVE BUSINESS INSIGHTS
+# ============================================
+
+import pandas as pd
+
+# ============================================
+# KPI TREND INDICATORS
 # ============================================
 
 st.markdown(
     '<div class="section-title">'
-    '🚚 Shipping Performance'
+    '🎯 KPI Performance Indicators'
     '</div>',
     unsafe_allow_html=True
 )
 
-shipping_data = (
+# Current filtered KPIs
+current_sales = filtered_df["Sales"].sum()
+current_profit = filtered_df["Profit"].sum()
+current_orders = filtered_df["Order ID"].nunique()
+
+if current_sales != 0:
+    current_margin = (
+        current_profit / current_sales
+    ) * 100
+else:
+    current_margin = 0
+
+
+# Calculate previous-period comparison
+if selected_year == "All Years":
+
+    yearly_kpi = (
+        backend.df
+        .groupby("Year")
+        .agg(
+            Sales=("Sales", "sum"),
+            Profit=("Profit", "sum"),
+            Orders=("Order ID", "nunique")
+        )
+        .reset_index()
+        .sort_values("Year")
+    )
+
+    if len(yearly_kpi) >= 2:
+
+        latest = yearly_kpi.iloc[-1]
+        previous = yearly_kpi.iloc[-2]
+
+        sales_change = (
+            (latest["Sales"] - previous["Sales"])
+            / previous["Sales"] * 100
+        )
+
+        profit_change = (
+            (latest["Profit"] - previous["Profit"])
+            / previous["Profit"] * 100
+        )
+
+        orders_change = (
+            (latest["Orders"] - previous["Orders"])
+            / previous["Orders"] * 100
+        )
+
+        previous_margin = (
+            previous["Profit"]
+            / previous["Sales"] * 100
+        )
+
+        margin_change = (
+            current_margin - previous_margin
+        )
+
+    else:
+
+        sales_change = 0
+        profit_change = 0
+        orders_change = 0
+        margin_change = 0
+
+else:
+
+    # Compare selected year with previous year
+    selected_year_int = int(selected_year)
+
+    current_year_data = backend.df[
+        backend.df["Year"] == selected_year_int
+    ]
+
+    previous_year_data = backend.df[
+        backend.df["Year"] == selected_year_int - 1
+    ]
+
+    if len(previous_year_data) > 0:
+
+        previous_sales = previous_year_data["Sales"].sum()
+        previous_profit = previous_year_data["Profit"].sum()
+        previous_orders = previous_year_data["Order ID"].nunique()
+
+        previous_margin = (
+            previous_profit / previous_sales * 100
+            if previous_sales != 0 else 0
+        )
+
+        sales_change = (
+            (current_sales - previous_sales)
+            / previous_sales * 100
+            if previous_sales != 0 else 0
+        )
+
+        profit_change = (
+            (current_profit - previous_profit)
+            / previous_profit * 100
+            if previous_profit != 0 else 0
+        )
+
+        orders_change = (
+            (current_orders - previous_orders)
+            / previous_orders * 100
+            if previous_orders != 0 else 0
+        )
+
+        margin_change = (
+            current_margin - previous_margin
+        )
+
+    else:
+
+        sales_change = 0
+        profit_change = 0
+        orders_change = 0
+        margin_change = 0
+
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+
+    st.metric(
+        "Sales",
+        f"${current_sales:,.0f}",
+        f"{sales_change:+.2f}%"
+    )
+
+with col2:
+
+    st.metric(
+        "Profit",
+        f"${current_profit:,.0f}",
+        f"{profit_change:+.2f}%"
+    )
+
+with col3:
+
+    st.metric(
+        "Orders",
+        f"{current_orders:,}",
+        f"{orders_change:+.2f}%"
+    )
+
+with col4:
+
+    st.metric(
+        "Profit Margin",
+        f"{current_margin:.2f}%",
+        f"{margin_change:+.2f} pp"
+    )
+
+
+# ============================================
+# PROFITABILITY MATRIX
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '📊 Profitability Matrix'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+matrix_data = (
     filtered_df
-    .groupby("Ship Mode")
+    .groupby("Product Category")
     .agg(
-        Average_Shipping_Days=("Shipping Days", "mean"),
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum")
+    )
+    .reset_index()
+)
+
+matrix_data["Profit Margin %"] = (
+    matrix_data["Profit"]
+    / matrix_data["Sales"]
+    * 100
+)
+
+if len(matrix_data) > 0:
+
+    sales_median = matrix_data["Sales"].median()
+    profit_median = matrix_data["Profit"].median()
+
+    def classify_category(row):
+
+        if (
+            row["Sales"] >= sales_median
+            and row["Profit"] >= profit_median
+        ):
+            return "High Sales / High Profit"
+
+        elif (
+            row["Sales"] >= sales_median
+            and row["Profit"] < profit_median
+        ):
+            return "High Sales / Low Profit"
+
+        elif (
+            row["Sales"] < sales_median
+            and row["Profit"] >= profit_median
+        ):
+            return "Low Sales / High Profit"
+
+        else:
+            return "Low Sales / Low Profit"
+
+    matrix_data["Performance Segment"] = (
+        matrix_data.apply(
+            classify_category,
+            axis=1
+        )
+    )
+
+    st.dataframe(
+        matrix_data[
+            [
+                "Product Category",
+                "Sales",
+                "Profit",
+                "Profit Margin %",
+                "Performance Segment"
+            ]
+        ].round(2),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.caption(
+        "Categories are classified using median Sales and "
+        "Profit as the comparison thresholds."
+    )
+
+
+# ============================================
+# EXECUTIVE SUMMARY
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '💡 Executive Business Summary'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+# Regional insight
+region_summary = (
+    filtered_df
+    .groupby("Region")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum")
+    )
+    .reset_index()
+)
+
+region_summary["Profit Margin %"] = (
+    region_summary["Profit"]
+    / region_summary["Sales"]
+    * 100
+)
+
+if len(region_summary) > 0:
+
+    top_sales_region = region_summary.loc[
+        region_summary["Sales"].idxmax()
+    ]
+
+    top_profit_region = region_summary.loc[
+        region_summary["Profit"].idxmax()
+    ]
+
+    top_margin_region = region_summary.loc[
+        region_summary["Profit Margin %"].idxmax()
+    ]
+
+else:
+
+    top_sales_region = None
+    top_profit_region = None
+    top_margin_region = None
+
+
+# Category insight
+category_summary = (
+    filtered_df
+    .groupby("Product Category")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum")
+    )
+    .reset_index()
+)
+
+category_summary["Profit Margin %"] = (
+    category_summary["Profit"]
+    / category_summary["Sales"]
+    * 100
+)
+
+if len(category_summary) > 0:
+
+    top_profit_category = category_summary.loc[
+        category_summary["Profit"].idxmax()
+    ]
+
+    lowest_margin_category = category_summary.loc[
+        category_summary["Profit Margin %"].idxmin()
+    ]
+
+else:
+
+    top_profit_category = None
+    lowest_margin_category = None
+
+
+if (
+    top_sales_region is not None
+    and top_profit_region is not None
+    and top_profit_category is not None
+):
+
+    period_text = (
+        "the complete dataset"
+        if selected_year == "All Years"
+        else f"{selected_year}"
+    )
+
+    st.info(
+        f"""
+        **Business Summary — {period_text}**
+
+        • **Sales Leader:** {top_sales_region['Region']}
+        generated ${top_sales_region['Sales']:,.0f} in sales.
+
+        • **Profit Leader by Region:** {top_profit_region['Region']}
+        generated ${top_profit_region['Profit']:,.0f} in profit.
+
+        • **Highest Profit Margin Region:**
+        {top_margin_region['Region']} with a
+        {top_margin_region['Profit Margin %']:.2f}% margin.
+
+        • **Most Profitable Category:**
+        {top_profit_category['Product Category']} with
+        ${top_profit_category['Profit']:,.0f} profit.
+
+        • **Lowest Category Margin:**
+        {lowest_margin_category['Product Category']} at
+        {lowest_margin_category['Profit Margin %']:.2f}%.
+        """
+    )
+
+
+st.divider()# ============================================
+# QUARTERLY & CUSTOMER PROFITABILITY ANALYSIS
+# ============================================
+
+import pandas as pd
+
+# ============================================
+# QUARTERLY PERFORMANCE ANALYSIS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '📅 Quarterly Performance Analysis'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+quarter_data = (
+    filtered_df
+    .groupby("Quarter")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum"),
+        Orders=("Order ID", "nunique"),
+        Quantity=("Order Quantity", "sum")
+    )
+    .reset_index()
+)
+
+quarter_data["Profit Margin %"] = (
+    quarter_data["Profit"]
+    / quarter_data["Sales"]
+    * 100
+)
+
+# Keep quarters in correct order
+quarter_order = ["Q1", "Q2", "Q3", "Q4"]
+
+quarter_data["Quarter"] = pd.Categorical(
+    quarter_data["Quarter"],
+    categories=quarter_order,
+    ordered=True
+)
+
+quarter_data = quarter_data.sort_values("Quarter")
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.markdown("**Sales by Quarter**")
+
+    st.bar_chart(
+        quarter_data.set_index("Quarter")["Sales"]
+    )
+
+with col2:
+
+    st.markdown("**Profit by Quarter**")
+
+    st.bar_chart(
+        quarter_data.set_index("Quarter")["Profit"]
+    )
+
+st.dataframe(
+    quarter_data[
+        [
+            "Quarter",
+            "Sales",
+            "Profit",
+            "Orders",
+            "Quantity",
+            "Profit Margin %"
+        ]
+    ].round(2),
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# ============================================
+# TOP & BOTTOM PRODUCT RANKING
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '🏆 Product Profitability Ranking'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+product_ranking = (
+    filtered_df
+    .groupby("Product Name")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum"),
         Orders=("Order ID", "nunique")
     )
     .reset_index()
 )
 
-shipping_data["Average_Shipping_Days"] = (
-    shipping_data["Average_Shipping_Days"].round(2)
+product_ranking["Profit Margin %"] = (
+    product_ranking["Profit"]
+    / product_ranking["Sales"]
+    * 100
+)
+
+top_products = (
+    product_ranking
+    .sort_values("Profit", ascending=False)
+    .head(10)
+)
+
+bottom_products = (
+    product_ranking
+    .sort_values("Profit", ascending=True)
+    .head(10)
 )
 
 col1, col2 = st.columns(2)
 
+with col1:
 
-# --------------------------------------------
-# Average Shipping Days
-# --------------------------------------------
+    st.markdown("**Top 10 Products by Profit**")
+
+    st.dataframe(
+        top_products[
+            [
+                "Product Name",
+                "Sales",
+                "Profit",
+                "Profit Margin %"
+            ]
+        ].round(2),
+        use_container_width=True,
+        hide_index=True
+    )
+
+with col2:
+
+    st.markdown("**Bottom 10 Products by Profit**")
+
+    st.dataframe(
+        bottom_products[
+            [
+                "Product Name",
+                "Sales",
+                "Profit",
+                "Profit Margin %"
+            ]
+        ].round(2),
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# ============================================
+# CUSTOMER PROFITABILITY ANALYSIS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '💼 Customer Profitability Analysis'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+customer_profit = (
+    filtered_df
+    .groupby("Customer Name")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum"),
+        Orders=("Order ID", "nunique"),
+        Quantity=("Order Quantity", "sum")
+    )
+    .reset_index()
+)
+
+customer_profit["Profit Margin %"] = (
+    customer_profit["Profit"]
+    / customer_profit["Sales"]
+    * 100
+)
+
+top_customers = (
+    customer_profit
+    .sort_values("Profit", ascending=False)
+    .head(10)
+)
+
+loss_customers = (
+    customer_profit[
+        customer_profit["Profit"] < 0
+    ]
+    .sort_values("Profit", ascending=True)
+    .head(10)
+)
+
+col1, col2 = st.columns(2)
 
 with col1:
 
-    st.markdown("### Average Shipping Days")
+    st.markdown("**Top 10 Customers by Profit**")
+
+    st.dataframe(
+        top_customers[
+            [
+                "Customer Name",
+                "Sales",
+                "Profit",
+                "Orders",
+                "Profit Margin %"
+            ]
+        ].round(2),
+        use_container_width=True,
+        hide_index=True
+    )
+
+with col2:
+
+    st.markdown("**Loss-Making Customers**")
+
+    if len(loss_customers) > 0:
+
+        st.dataframe(
+            loss_customers[
+                [
+                    "Customer Name",
+                    "Sales",
+                    "Profit",
+                    "Orders",
+                    "Profit Margin %"
+                ]
+            ].round(2),
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.success(
+            "✅ No loss-making customers found."
+        )
+
+
+# ============================================
+# AUTOMATIC QUARTER & CUSTOMER INSIGHTS
+# ============================================
+
+if len(quarter_data) > 0:
+
+    best_quarter = quarter_data.loc[
+        quarter_data["Profit"].idxmax()
+    ]
+
+    best_margin_quarter = quarter_data.loc[
+        quarter_data["Profit Margin %"].idxmax()
+    ]
+
+    st.info(
+        f"💡 **Quarterly Insight:** "
+        f"{best_quarter['Quarter']} generated the highest "
+        f"profit at ${best_quarter['Profit']:,.0f}, while "
+        f"{best_margin_quarter['Quarter']} had the highest "
+        f"profit margin at "
+        f"{best_margin_quarter['Profit Margin %']:.2f}%."
+    )
+
+
+if len(customer_profit) > 0:
+
+    best_customer = customer_profit.loc[
+        customer_profit["Profit"].idxmax()
+    ]
+
+    st.info(
+        f"💡 **Customer Insight:** "
+        f"{best_customer['Customer Name']} generated the "
+        f"highest profit at "
+        f"${best_customer['Profit']:,.0f}."
+    )
+
+
+st.divider()
+
+
+# ============================================
+# REGIONAL, SHIPPING & GROWTH ANALYSIS
+# ============================================
+
+import pandas as pd
+
+# ============================================
+# REGIONAL × CATEGORY ANALYSIS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '🌍 Regional × Category Analysis'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+region_category = (
+    filtered_df
+    .groupby(["Region", "Product Category"])
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum"),
+        Orders=("Order ID", "nunique")
+    )
+    .reset_index()
+)
+
+region_category["Profit Margin %"] = (
+    region_category["Profit"]
+    / region_category["Sales"]
+    * 100
+)
+
+st.dataframe(
+    region_category[
+        [
+            "Region",
+            "Product Category",
+            "Sales",
+            "Profit",
+            "Orders",
+            "Profit Margin %"
+        ]
+    ]
+    .sort_values("Sales", ascending=False)
+    .round(2),
+    use_container_width=True,
+    hide_index=True
+)
+
+# Top region-category combinations
+top_region_category = (
+    region_category
+    .sort_values("Profit", ascending=False)
+    .head(10)
+)
+
+st.markdown("**Top 10 Region–Category Combinations by Profit**")
+
+st.bar_chart(
+    top_region_category.set_index(
+        "Region"
+    )["Profit"]
+)
+
+
+# ============================================
+# SHIPPING EFFICIENCY ANALYSIS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '🚚 Shipping Efficiency Analysis'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+shipping_efficiency = (
+    filtered_df
+    .groupby("Ship Mode")
+    .agg(
+        Average_Shipping_Days=("Shipping Days", "mean"),
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum"),
+        Orders=("Order ID", "nunique")
+    )
+    .reset_index()
+)
+
+shipping_efficiency["Profit Margin %"] = (
+    shipping_efficiency["Profit"]
+    / shipping_efficiency["Sales"]
+    * 100
+)
+
+shipping_efficiency = shipping_efficiency.sort_values(
+    "Average_Shipping_Days"
+)
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.markdown("**Average Shipping Days**")
 
     st.bar_chart(
-        shipping_data.set_index("Ship Mode")[
-            "Average_Shipping_Days"
+        shipping_efficiency.set_index(
+            "Ship Mode"
+        )["Average_Shipping_Days"]
+    )
+
+with col2:
+
+    st.markdown("**Profit by Shipping Mode**")
+
+    st.bar_chart(
+        shipping_efficiency.set_index(
+            "Ship Mode"
+        )["Profit"]
+    )
+
+st.dataframe(
+    shipping_efficiency[
+        [
+            "Ship Mode",
+            "Average_Shipping_Days",
+            "Sales",
+            "Profit",
+            "Orders",
+            "Profit Margin %"
+        ]
+    ].round(2),
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# ============================================
+# YEAR-OVER-YEAR GROWTH ANALYSIS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '📈 Year-over-Year Growth Analysis'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+year_growth = (
+    backend.df
+    .groupby("Year")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum"),
+        Orders=("Order ID", "nunique")
+    )
+    .reset_index()
+    .sort_values("Year")
+)
+
+# Calculate growth percentages
+year_growth["Sales Growth %"] = (
+    year_growth["Sales"]
+    .pct_change()
+    * 100
+)
+
+year_growth["Profit Growth %"] = (
+    year_growth["Profit"]
+    .pct_change()
+    * 100
+)
+
+year_growth["Orders Growth %"] = (
+    year_growth["Orders"]
+    .pct_change()
+    * 100
+)
+
+# Replace first year's missing growth with 0
+year_growth[
+    [
+        "Sales Growth %",
+        "Profit Growth %",
+        "Orders Growth %"
+    ]
+] = year_growth[
+    [
+        "Sales Growth %",
+        "Profit Growth %",
+        "Orders Growth %"
+    ]
+].fillna(0)
+
+st.dataframe(
+    year_growth[
+        [
+            "Year",
+            "Sales",
+            "Profit",
+            "Orders",
+            "Sales Growth %",
+            "Profit Growth %",
+            "Orders Growth %"
+        ]
+    ].round(2),
+    use_container_width=True,
+    hide_index=True
+)
+
+col1, col2 = st.columns(2)
+
+with col1:
+
+    st.markdown("**Yearly Sales Growth**")
+
+    st.bar_chart(
+        year_growth.set_index("Year")[
+            "Sales Growth %"
+        ]
+    )
+
+with col2:
+
+    st.markdown("**Yearly Profit Growth**")
+
+    st.bar_chart(
+        year_growth.set_index("Year")[
+            "Profit Growth %"
         ]
     )
 
 
-# --------------------------------------------
-# Orders by Ship Mode
-# --------------------------------------------
+# ============================================
+# AUTOMATIC GROWTH INSIGHT
+# ============================================
 
-with col2:
+if len(year_growth) >= 2:
 
-    st.markdown("### Orders by Ship Mode")
+    latest_year = year_growth.iloc[-1]
+    previous_year = year_growth.iloc[-2]
 
-    st.bar_chart(
-        shipping_data.set_index("Ship Mode")[
-            "Orders"
-        ]
+    if latest_year["Sales Growth %"] > 0:
+
+        sales_message = (
+            f"Sales increased by "
+            f"{latest_year['Sales Growth %']:.2f}% "
+            f"from {int(previous_year['Year'])} to "
+            f"{int(latest_year['Year'])}."
+        )
+
+    else:
+
+        sales_message = (
+            f"Sales decreased by "
+            f"{abs(latest_year['Sales Growth %']):.2f}% "
+            f"from {int(previous_year['Year'])} to "
+            f"{int(latest_year['Year'])}."
+        )
+
+    if latest_year["Profit Growth %"] > 0:
+
+        profit_message = (
+            f"Profit increased by "
+            f"{latest_year['Profit Growth %']:.2f}%."
+        )
+
+    else:
+
+        profit_message = (
+            f"Profit decreased by "
+            f"{abs(latest_year['Profit Growth %']):.2f}%."
+        )
+
+    st.info(
+        f"💡 **Year-over-Year Insight:** "
+        f"{sales_message} {profit_message}"
     )
 
 
@@ -598,43 +1367,8 @@ st.write(
     "categories and business performance."
 )
 
-# --------------------------------------------
-# Suggested Questions
-# --------------------------------------------
-
-st.markdown("**💬 Try asking:**")
-
-suggestion_cols = st.columns(4)
-
-suggested_questions = [
-    "Which region has the highest profit margin?",
-    "Which category generated the most profit?",
-    "Which year had the highest profit margin?",
-    "Give me 3 business recommendations."
-]
-
-for col, suggestion in zip(
-    suggestion_cols,
-    suggested_questions
-):
-
-    with col:
-
-        if st.button(
-            suggestion,
-            use_container_width=True
-        ):
-            st.session_state["selected_question"] = suggestion
-
-
-selected_question = st.session_state.get(
-    "selected_question",
-    ""
-)
-
 question = st.text_input(
     "Ask a business question",
-    value=selected_question,
     placeholder=(
         "Example: Which region has the highest "
         "profit margin?"
@@ -650,10 +1384,415 @@ if question:
     ):
 
         answer = backend.business_copilot(
-            question,
-            filtered_df
+            question
         )
 
-        st.markdown(
-            answer
+        st.success(answer)
+
+
+
+# ============================================
+# RISK & OPPORTUNITY DETECTION
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '⚠️ Risk & Opportunity Detection'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+risk_col1, risk_col2 = st.columns(2)
+
+# Category-level risk analysis
+risk_category = (
+    filtered_df
+    .groupby("Product Category")
+    .agg(
+        Sales=("Sales", "sum"),
+        Profit=("Profit", "sum")
+    )
+    .reset_index()
+)
+
+risk_category["Profit Margin %"] = (
+    risk_category["Profit"]
+    / risk_category["Sales"]
+    * 100
+)
+
+with risk_col1:
+
+    st.markdown("### ⚠️ Business Risks")
+
+    risks = []
+
+    # Low-margin high-sales category
+    if len(risk_category) > 0:
+
+        median_sales = risk_category["Sales"].median()
+
+        high_sales_low_margin = risk_category[
+            (risk_category["Sales"] >= median_sales) &
+            (risk_category["Profit Margin %"] < 5)
+        ]
+
+        for _, row in high_sales_low_margin.iterrows():
+
+            risks.append(
+                f"**{row['Product Category']}** has high sales "
+                f"but only **{row['Profit Margin %']:.2f}%** profit margin."
+            )
+
+    # Loss-making products
+    loss_products = filtered_df[
+        filtered_df["Profit"] < 0
+    ]
+
+    if len(loss_products) > 0:
+
+        loss_count = loss_products["Product Name"].nunique()
+
+        risks.append(
+            f"**{loss_count:,} products** have recorded "
+            f"loss-making transactions."
         )
+
+    # Loss-making customers
+    customer_profit = (
+        filtered_df
+        .groupby("Customer Name")["Profit"]
+        .sum()
+    )
+
+    loss_customers = customer_profit[
+        customer_profit < 0
+    ]
+
+    if len(loss_customers) > 0:
+
+        risks.append(
+            f"**{len(loss_customers):,} customers** have "
+            f"negative overall profit."
+        )
+
+    if risks:
+
+        for risk in risks[:5]:
+            st.warning(risk)
+
+    else:
+
+        st.success(
+            "No major profitability risks detected "
+            "in the current filtered data."
+        )
+
+
+with risk_col2:
+
+    st.markdown("### 🚀 Business Opportunities")
+
+    opportunities = []
+
+    # Highest-margin category
+    if len(risk_category) > 0:
+
+        top_margin = risk_category.loc[
+            risk_category["Profit Margin %"].idxmax()
+        ]
+
+        opportunities.append(
+            f"**{top_margin['Product Category']}** has the highest "
+            f"category profit margin at "
+            f"**{top_margin['Profit Margin %']:.2f}%**."
+        )
+
+    # Highest-profit region
+    opportunity_region = (
+        filtered_df
+        .groupby("Region")
+        .agg(
+            Sales=("Sales", "sum"),
+            Profit=("Profit", "sum")
+        )
+        .reset_index()
+    )
+
+    if len(opportunity_region) > 0:
+
+        opportunity_region["Margin %"] = (
+            opportunity_region["Profit"]
+            / opportunity_region["Sales"]
+            * 100
+        )
+
+        top_region = opportunity_region.loc[
+            opportunity_region["Margin %"].idxmax()
+        ]
+
+        opportunities.append(
+            f"**{top_region['Region']}** has the highest regional "
+            f"profit margin at **{top_region['Margin %']:.2f}%**."
+        )
+
+    # Highest-profit customer segment
+    segment_profit = (
+        filtered_df
+        .groupby("Customer Segment")["Profit"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+
+    if len(segment_profit) > 0:
+
+        top_segment = segment_profit.index[0]
+
+        opportunities.append(
+            f"**{top_segment}** generates the highest total "
+            f"profit among customer segments."
+        )
+
+    if opportunities:
+
+        for opportunity in opportunities[:5]:
+            st.success(opportunity)
+
+    else:
+
+        st.info(
+            "No specific opportunities detected "
+            "in the current filtered data."
+        )
+
+
+# ============================================
+# AUTOMATIC BUSINESS RECOMMENDATIONS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '💡 Automatic Business Recommendations'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+recommendations = []
+
+# Recommendation 1: Low margin category
+if len(risk_category) > 0:
+
+    low_margin_category = risk_category.loc[
+        risk_category["Profit Margin %"].idxmin()
+    ]
+
+    recommendations.append(
+        f"**Review {low_margin_category['Product Category']} "
+        f"profitability:** its current profit margin is "
+        f"**{low_margin_category['Profit Margin %']:.2f}%**. "
+        f"Consider reviewing discount levels, pricing, and product mix."
+    )
+
+
+# Recommendation 2: Strong category
+if len(risk_category) > 0:
+
+    high_profit_category = risk_category.loc[
+        risk_category["Profit"].idxmax()
+    ]
+
+    recommendations.append(
+        f"**Expand the {high_profit_category['Product Category']} "
+        f"category:** it currently generates the highest category "
+        f"profit of **${high_profit_category['Profit']:,.0f}**."
+    )
+
+
+# Recommendation 3: Regional opportunity
+if len(opportunity_region) > 0:
+
+    highest_margin_region = opportunity_region.loc[
+        opportunity_region["Margin %"].idxmax()
+    ]
+
+    recommendations.append(
+        f"**Study the {highest_margin_region['Region']} region:** "
+        f"it achieves a **{highest_margin_region['Margin %']:.2f}%** "
+        f"profit margin and may provide useful practices for other regions."
+    )
+
+
+# Recommendation 4: Discount risk
+if "Discount" in filtered_df.columns:
+
+    discount_analysis = (
+        filtered_df
+        .groupby("Discount")
+        .agg(
+            Sales=("Sales", "sum"),
+            Profit=("Profit", "sum")
+        )
+        .reset_index()
+    )
+
+    discount_analysis["Margin %"] = (
+        discount_analysis["Profit"]
+        / discount_analysis["Sales"]
+        * 100
+    )
+
+    if len(discount_analysis) > 0:
+
+        worst_discount = discount_analysis.loc[
+            discount_analysis["Margin %"].idxmin()
+        ]
+
+        recommendations.append(
+            f"**Review discount level "
+            f"{worst_discount['Discount']:.0%}:** it has the lowest "
+            f"profit margin at **{worst_discount['Margin %']:.2f}%**."
+        )
+
+
+for i, recommendation in enumerate(
+    recommendations[:5],
+    start=1
+):
+
+    st.info(
+        f"**Recommendation {i}:** {recommendation}"
+    )
+
+
+# ============================================
+# DATA QUALITY OVERVIEW
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '🔎 Data Quality Overview'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+quality_col1, quality_col2, quality_col3, quality_col4 = st.columns(4)
+
+with quality_col1:
+
+    st.metric(
+        "Rows",
+        f"{len(backend.df):,}"
+    )
+
+with quality_col2:
+
+    st.metric(
+        "Columns",
+        f"{len(backend.df.columns):,}"
+    )
+
+with quality_col3:
+
+    duplicate_count = backend.df.duplicated().sum()
+
+    st.metric(
+        "Duplicate Rows",
+        f"{duplicate_count:,}"
+    )
+
+with quality_col4:
+
+    missing_count = backend.df.isna().sum().sum()
+
+    st.metric(
+        "Missing Values",
+        f"{missing_count:,}"
+    )
+
+
+date_col1, date_col2 = st.columns(2)
+
+with date_col1:
+
+    min_date = pd.to_datetime(backend.df["Order Date"]).min()
+
+    st.metric(
+        "Data Start",
+        min_date.strftime("%d %b %Y")
+    )
+
+with date_col2:
+
+    max_date = pd.to_datetime(backend.df["Order Date"]).max()
+
+    st.metric(
+        "Data End",
+        max_date.strftime("%d %b %Y")
+    )
+
+st.caption(
+    "Data quality metrics are calculated using the complete "
+    "dataset, while business risks and recommendations use "
+    "the currently selected filters."
+)
+
+st.divider()
+
+
+# ============================================
+# DOWNLOAD REPORTS
+# ============================================
+
+st.markdown(
+    '<div class="section-title">'
+    '📥 Download Reports'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+download_col1, download_col2 = st.columns(2)
+
+# Filtered dataset
+filtered_csv = filtered_df.to_csv(
+    index=False
+).encode("utf-8")
+
+with download_col1:
+    st.download_button(
+        label="⬇️ Download Filtered Data",
+        data=filtered_csv,
+        file_name="filtered_business_data.csv",
+        mime="text/csv"
+    )
+
+# Business summary
+summary_data = pd.DataFrame({
+    "Metric": [
+        "Total Sales",
+        "Total Profit",
+        "Total Orders",
+        "Total Customers",
+        "Profit Margin",
+        "Average Order Value"
+    ],
+    "Value": [
+        round(total_sales, 2),
+        round(total_profit, 2),
+        total_orders,
+        total_customers,
+        round(profit_margin, 2),
+        round(average_order_value, 2)
+    ]
+})
+
+summary_csv = summary_data.to_csv(
+    index=False
+).encode("utf-8")
+
+with download_col2:
+    st.download_button(
+        label="⬇️ Download Business Summary",
+        data=summary_csv,
+        file_name="business_summary.csv",
+        mime="text/csv"
+    )
